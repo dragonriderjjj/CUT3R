@@ -40,6 +40,11 @@ def get_args_parser():
     parser.add_argument("--freeze", action="store_true")
     return parser
 
+def apply_pose_to_point_cloud(pcd_np, pose_path):
+ 
+    pose = np.loadtxt(pose_path)
+    pcd_homo = np.concatenate([pcd_np, np.ones((pcd_np.shape[0], 1))], axis=1)
+    return (pose @ pcd_homo.T).T[:, :3]
 
 def main(args):
     add_path_to_dust3r(args.weights)
@@ -59,15 +64,7 @@ def main(args):
             resolution=resolution,
             num_seq=1,
             full_video=True,
-            kf_every=200,
-        ),  # 20),
-        "NRGBD": NRGBD(
-            split="test",
-            ROOT="./data/neural_rgbd",
-            resolution=resolution,
-            num_seq=1,
-            full_video=True,
-            kf_every=500,
+            kf_every=100,
         ),
     }
 
@@ -235,6 +232,12 @@ def main(args):
                     masks_all = np.concatenate(masks_all, axis=0)
 
                     scene_id = view["label"][0].rsplit("/", 1)[0]
+                    
+                    sequence_info = view["label"][0].rsplit("/", 1)[1]  # Extract sequence ID
+                    sequence_id = sequence_info.split("\\")[0] 
+                    print(f"Scene ID: {scene_id}, Sequence ID: {sequence_id}")
+                    filename = f"{scene_id.replace('/', '_')}-{sequence_id}.ply"
+
 
                     save_params = {}
 
@@ -257,6 +260,12 @@ def main(args):
                     pts_gt_all_masked = pts_gt_all[masks_all > 0]
                     images_all_masked = images_all[masks_all > 0]
 
+                    pose0_path = os.path.join(dataset.ROOT, scene_id, 'frame-000000.pose.txt')
+                    if os.path.exists(pose0_path):
+                        print(f'Applying first-frame pose: {pose0_path}')
+                        pts_all_masked = apply_pose_to_point_cloud(pts_all_masked.reshape(-1, 3), pose0_path).reshape(-1, 3)
+                        
+
                     pcd = o3d.geometry.PointCloud()
                     pcd.points = o3d.utility.Vector3dVector(
                         pts_all_masked.reshape(-1, 3)
@@ -264,10 +273,10 @@ def main(args):
                     pcd.colors = o3d.utility.Vector3dVector(
                         images_all_masked.reshape(-1, 3)
                     )
+                    print("filename", filename)
                     o3d.io.write_point_cloud(
-                        os.path.join(
-                            save_path, f"{scene_id.replace('/', '_')}-mask.ply"
-                        ),
+                        
+                        os.path.join(save_path, "test/",filename),
                         pcd,
                     )
 

@@ -53,3 +53,5 @@ docs/_build/
 *.pth
 data
 src/checkpoints
+eval.7z
+eval_results/

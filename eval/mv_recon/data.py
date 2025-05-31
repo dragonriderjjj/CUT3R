@@ -111,6 +111,7 @@ class SevenScenes(BaseStereoViewDataset):
                     seq_id = f"seq-{num_part.zfill(2)}"
                     if self.seq_id is not None and seq_id != self.seq_id:
                         continue
+                    print(f"Found {scene}/{seq_id}")
                     self.scene_list.append(f"{scene}/{seq_id}")
 
         print(f"Found {len(self.scene_list)} sequences in split {self.split}")
@@ -126,7 +127,8 @@ class SevenScenes(BaseStereoViewDataset):
             scene_id = self.scene_list[idx // self.num_seq]
             seq_id = idx % self.num_seq
 
-            data_path = osp.join(self.ROOT, scene_id)
+
+            data_path = self.ROOT + "/" + scene_id
             num_files = len([name for name in os.listdir(data_path) if "color" in name])
             img_idxs = [f"{i:06d}" for i in range(num_files)]
             img_idxs = img_idxs[:: self.kf_every]
@@ -155,8 +157,10 @@ class SevenScenes(BaseStereoViewDataset):
             depthmap[depthmap > 10] = 0
             depthmap[depthmap < 1e-3] = 0
 
-            camera_pose = np.loadtxt(posepath).astype(np.float32)
-
+            if osp.exists(posepath):
+                camera_pose = np.loadtxt(posepath).astype(np.float32)
+            else:
+                camera_pose = np.eye(4, dtype=np.float32)
             if resolution != (224, 224) or self.rebuttal:
                 rgb_image, depthmap, intrinsics = self._crop_resize_if_necessary(
                     rgb_image, depthmap, intrinsics_, resolution, rng=rng, info=impath

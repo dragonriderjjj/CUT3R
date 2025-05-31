@@ -49,10 +49,12 @@ def get_data_loader(
     fixed_length=False,
 ):
     import torch
+    from dust3r.datasets import seven_scenes 
 
     # pytorch dataset
-    if isinstance(dataset, str):
-        dataset = eval(dataset)
+    # if isinstance(dataset, str):
+    #     print("dataset,", dataset)
+    #     dataset = eval(dataset)
 
     try:
         sampler = dataset.make_sampler(

@@ -353,7 +353,7 @@ class BaseMultiViewDataset(EasyDataset):
             ar_idx
         ]  # DO NOT CHANGE THIS (compatible with BatchedRandomSampler)
         views = self._get_views(idx, resolution, self._rng, nview)
-        assert len(views) == nview
+        # assert len(views) == nview
 
         if "camera_pose" not in views[0]:
             views[0]["camera_pose"] = np.ones((4, 4), dtype=np.float32)

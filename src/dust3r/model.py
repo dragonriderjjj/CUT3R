@@ -568,6 +568,8 @@ class ARCroco3DStereo(CroCoNet):
         return state_feat, state_pos, None
 
     def _encode_views(self, views, img_mask=None, ray_mask=None):
+        printer.info(views[0])
+        printer.info(views[0]["img"].shape[0])
         device = views[0]["img"].device
         batch_size = views[0]["img"].shape[0]
         given = True

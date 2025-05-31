@@ -30,7 +30,7 @@ from dust3r.model import (
     inf,
     strip_module,
 )  # noqa: F401, needed when loading the model
-from dust3r.datasets import get_data_loader
+from dust3r.datasets import seven_scenes
 from dust3r.losses import *  # noqa: F401, needed when loading the model
 from dust3r.inference import loss_of_one_batch, loss_of_one_batch_tbptt  # noqa
 from dust3r.viz import colorize
@@ -52,6 +52,7 @@ from accelerate import Accelerator
 from accelerate import DistributedDataParallelKwargs, InitProcessGroupKwargs
 from accelerate.logging import get_logger
 from datetime import timedelta
+from dust3r.datasets import seven_scenes
 import torch.multiprocessing
 
 torch.multiprocessing.set_sharing_strategy("file_system")
@@ -78,7 +79,7 @@ def setup_for_distributed(accelerator: Accelerator):
 
 def save_current_code(outdir):
     now = datetime.datetime.now()  # current date and time
-    date_time = now.strftime("%m_%d-%H:%M:%S")
+    date_time = now.strftime("%m_%d-%H_%M_%S") 
     src_dir = "."
     dst_dir = os.path.join(outdir, "code", "{}".format(date_time))
     shutil.copytree(
@@ -150,9 +151,8 @@ def train(args):
     #  dataset and loader
     data_loader_train = build_dataset(
         args.train_dataset,
-        args.batch_size,
-        args.num_workers,
-        accelerator=accelerator,
+        args,
+        accelerator,
         test=False,
         fixed_length=args.fixed_length
     )
@@ -160,9 +160,8 @@ def train(args):
     data_loader_test = {
         dataset.split("(")[0]: build_dataset(
             dataset,
-            args.batch_size,
-            args.num_workers,
-            accelerator=accelerator,
+            args,
+            accelerator,
             test=True,
             fixed_length=True
         )
@@ -196,21 +195,19 @@ def train(args):
 
     if args.pretrained and not args.resume:
         printer.info(f"Loading pretrained: {args.pretrained}")
-        ckpt = torch.load(args.pretrained, map_location=device)
+        ckpt = torch.load(args.pretrained, map_location=device, weights_only=False)
         load_only_encoder = getattr(args, "load_only_encoder", False)
-        if load_only_encoder:
-            filtered_state_dict = {
-                k: v
-                for k, v in ckpt["model"].items()
-                if "enc_blocks" in k or "patch_embed" in k
-            }
-            printer.info(
-                model.load_state_dict(strip_module(filtered_state_dict), strict=False)
-            )
-        else:
-            printer.info(
-                model.load_state_dict(strip_module(ckpt["model"]), strict=False)
-            )
+        # if load_only_encoder:
+        #     filtered_state_dict = {
+        #         k: v
+        #         for k, v in ckpt["model"].items()
+        #         if "enc_blocks" in k or "patch_embed" in k
+        #     }
+
+        # else:
+        #     printer.info(
+        #         model.load_state_dict(strip_module(ckpt["model"]), strict=False)
+        #     )
         del ckpt  # in case it occupies memory
 
     # # following timm: set wd as 0 for bias and norm layers
@@ -351,20 +348,63 @@ def save_final_model(accelerator, args, epoch, model_without_ddp, best_so_far=No
     misc.save_on_master(accelerator, to_save, checkpoint_path)
 
 
-def build_dataset(dataset, batch_size, num_workers, accelerator, test=False, fixed_length=False):
-    split = ["Train", "Test"][test]
-    printer.info(f"Building {split} Data loader for dataset: {dataset}")
-    loader = get_data_loader(
-        dataset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        pin_mem=True,
-        shuffle=not (test),
-        drop_last=not (test),
-        accelerator=accelerator,
-        fixed_length=fixed_length
-    )
-    return loader
+def build_dataset(dataset_name, cfg, accelerator, test=False, fixed_length=False):
+    split = ["train", "test"][test]
+    printer.info(f"Building {split} Data loader for dataset: {dataset_name}")
+
+    # Get the dataset configuration object
+    if dataset_name == "seven_scenes_train":
+        dataset = dust3r.datasets.seven_scenes.SevenScenes(
+            allow_repeat=True,
+            split='train',
+            ROOT='../data/7scenes',
+            resolution=[(512, 384), (512, 336), (512, 288), (512, 256), (512, 208), (512, 144), (384, 512), (336, 512), (288, 512), (256, 512)],
+            num_views=64,
+        )
+    elif dataset_name == "seven_scenes_test":
+        dataset = dust3r.datasets.seven_scenes.SevenScenes(
+            allow_repeat=True,
+            split='test',
+            ROOT='../data/7scenes',
+            resolution=[(512, 384), (512, 336), (512, 288), (512, 256), (512, 208), (512, 144), (384, 512), (336, 512), (288, 512), (256, 512)],
+            num_views=4,
+        )
+
+    else:
+        raise ValueError(f"Unknown dataset: {dataset_name}")
+    # if isinstance(dataset, str):
+    #     dataset = eval(dataset)
+    
+    try:
+        sampler = dataset.make_sampler(
+            batch_size=cfg.batch_size,
+            shuffle=not test,
+            drop_last=not test,
+            world_size=accelerator.num_processes,
+            fixed_length=fixed_length
+        )
+        shuffle = False
+
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_sampler=sampler,
+            num_workers=cfg.num_workers,
+            pin_memory=True,
+        )
+
+    except (AttributeError, NotImplementedError):
+        sampler = None
+
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=cfg.batch_size,
+            shuffle=not test,
+            num_workers=cfg.num_workers,
+            pin_memory=True,
+            drop_last=not test,
+        )
+
+    return data_loader
 
 
 def train_one_epoch(
@@ -415,6 +455,7 @@ def train_one_epoch(
     for data_iter_step, batch in enumerate(
         metric_logger.log_every(data_loader, args.print_freq, accelerator, header)
     ):
+        printer.info(f"Batch {data_iter_step}: {batch}")
         with accelerator.accumulate(model):
             epoch_f = epoch + data_iter_step / len(data_loader)
             step = int(epoch_f * len(data_loader))
