@@ -44,7 +44,18 @@ cd src
 gdown --fuzzy https://drive.google.com/file/d/1Asz-ZB3FfpzZYwunhQvNPZEUA8XUNAYD/view?usp=drive_link
 cd ..
 ```
+### Download dataset
+for 7scenes evaluation:
+```bash
+mkdir data
+cd data
 
+# download 7scenes data 
+gdown [path-to-download-link]
+unzip ./7scenes.zip
+cd ..
+```
+place the data 
 ### Multi-view Reconstruction
 
 ```bash
