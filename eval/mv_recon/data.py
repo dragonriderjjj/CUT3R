@@ -98,21 +98,24 @@ class SevenScenes(BaseStereoViewDataset):
 
         self.scene_list = []
         for scene in scenes:
-            if self.test_id is not None and scene != self.test_id:
-                continue
-            # read file split
-            with open(osp.join(base_dir, scene, file_split)) as f:
-                seq_ids = f.read().splitlines()
+            test_path = osp.join(base_dir, scene, 'test')
+            if osp.exists(test_path):
+                seq_dirs = [d for d in os.listdir(test_path) 
+                       if osp.isdir(osp.join(test_path, d)) and d.startswith('seq-')]
+                for seq_dir in seq_dirs:
+                    seq_path = f"{scene}/test/{seq_dir}"
+                    print(f"Found {seq_path}")
+                    self.scene_list.append(seq_path)
+         
+        # self.scene_list= [
+        #     "chess/seq-05",
+        #     "fire/seq-04",
+        #     "pumpkin/seq-07",
+        #     "stairs/seq-04",
+        # ]
+        # for scene in self.scene_list:
+        #     print(f"Found {scene} in split {self.split}")
 
-                for seq_id in seq_ids:
-                    # seq is string, take the int part and make it 01, 02, 03
-                    # seq_id = 'seq-{:2d}'.format(int(seq_id))
-                    num_part = "".join(filter(str.isdigit, seq_id))
-                    seq_id = f"seq-{num_part.zfill(2)}"
-                    if self.seq_id is not None and seq_id != self.seq_id:
-                        continue
-                    print(f"Found {scene}/{seq_id}")
-                    self.scene_list.append(f"{scene}/{seq_id}")
 
         print(f"Found {len(self.scene_list)} sequences in split {self.split}")
 
