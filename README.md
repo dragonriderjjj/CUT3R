@@ -63,4 +63,4 @@ cd ..
 bash eval/mv_recon/run.sh # You may need to change [--num_processes] to the number of your gpus
 ```
 
-Results will be saved in `eval_results/mv_recon/${model_name}_${ckpt_name}/logs_all.txt`.
+Results will be saved in `eval_results/mv_recon/${model_name}_${ckpt_name}/
