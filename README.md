@@ -3,7 +3,7 @@
 1. Clone CUT3R.
 
 ```bash
-[git clone https://github.com/CUT3R/CUT3R.git](https://github.com/dragonriderjjj/CUT3R.git)
+git clone https://github.com/dragonriderjjj/CUT3R.git
 cd CUT3R
 ```
 
