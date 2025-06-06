@@ -15,7 +15,7 @@ conda activate cut3r
 conda install pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia  # use the correct version of cuda for your system
 pip install -r requirements.txt
 
-# for training logging
+# for training logging, you can skip it for eval
 pip install git+https://github.com/nerfstudio-project/gsplat.git
 # for evaluation
 pip install evo
