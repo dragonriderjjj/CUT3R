@@ -64,7 +64,7 @@ def main(args):
             resolution=resolution,
             num_seq=1,
             full_video=True,
-            kf_every=100,
+            kf_every=20,
         ),
     }
 
@@ -89,6 +89,7 @@ def main(args):
         for name_data, dataset in datasets_all.items():
             save_path = osp.join(args.output_dir, name_data)
             os.makedirs(save_path, exist_ok=True)
+            os.makedirs(osp.join(save_path, 'test'), exist_ok=True)
             log_file = osp.join(save_path, f"logs_{accelerator.process_index}.txt")
 
             acc_all = 0
@@ -154,7 +155,8 @@ def main(args):
                                             ).bool()
                                     new_views.append(new_view)
                             batch = new_views
-                        with torch.cuda.amp.autocast(enabled=False):
+                        with torch.amp.autocast('cuda', enabled=False):
+                            
                             start = time.time()
                             output = model(batch)
                             end = time.time()
