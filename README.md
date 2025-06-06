@@ -46,6 +46,7 @@ cd ..
 ```
 ### Download dataset
 for 7scenes evaluation:
+place the data under "CUT3R/data/"
 ```bash
 mkdir data
 cd data
@@ -55,7 +56,7 @@ gdown [path-to-download-link]
 unzip ./7scenes.zip
 cd ..
 ```
-place the data 
+
 ### Multi-view Reconstruction
 
 ```bash
