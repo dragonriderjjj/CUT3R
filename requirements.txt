@@ -18,6 +18,7 @@ lpips
 hydra-core
 pillow==10.3.0
 h5py
+gdown
 accelerate
 transformers
 scikit-learn
